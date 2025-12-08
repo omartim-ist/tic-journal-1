@@ -23,7 +23,7 @@ class PolitisRomanoBootstrap:
     def __init__(self, serie, n_boot, l=None, T=None):
         """
         serie : array-like
-            - 1D: shape (T,)       -> single asset
+            - 1D: shape (T,) -> single asset
             - 2D: shape (n_assets, T) -> multi-asset price series
         n_boot : int
             number of bootstrap series to generate
@@ -43,14 +43,14 @@ class PolitisRomanoBootstrap:
         if arr.ndim != 2:
             raise ValueError("serie must be 1D (T,) or 2D (n_assets, T).")
 
-        self.prices = arr                         # shape: (n_assets, T_prices)
+        self.prices = arr # shape: (n_assets, T_prices)
         self.n_assets, T_prices = self.prices.shape
 
         # log-returns ao longo do tempo
-        self.lrets = np.diff(np.log(self.prices), axis=1)  # (n_assets, T_ret)
+        self.lrets = np.diff(np.log(self.prices), axis=1) # (n_assets, T_ret)
         
         if T is None:
-            self.T = self.lrets.shape[1]                       # T_ret = T_prices - 1
+            self.T = self.lrets.shape[1] # T_ret = T_prices - 1
         else:
             self.T = T
 
@@ -60,11 +60,11 @@ class PolitisRomanoBootstrap:
             l = self.T ** (1/3)
 
         self.l = float(l)
-        self.p = 1.0 / self.l   # probabilidade de terminar um bloco
+        self.p = 1.0 / self.l # probabilidade de terminar um bloco
 
     def _generate_one(self):
         """Gera uma única série bootstrap multiasset, normalizada (começa em 1.0)."""
-        X = self.lrets               # shape: (n_assets, T)
+        X = self.lrets # shape: (n_assets, T)
         n_assets = X.shape[0]
         T = self.T
         p = self.p
@@ -75,7 +75,7 @@ class PolitisRomanoBootstrap:
 
         while idx < T:
             # início de bloco (escolhe índice temporal)
-            pos = np.random.randint(0, T)  # 0..T-1
+            pos = np.random.randint(0, T) # 0...T-1
 
             # geração dentro do bloco
             while idx < T:
@@ -86,12 +86,12 @@ class PolitisRomanoBootstrap:
                 # decide se o bloco termina
                 if np.random.rand() < p:
                     break
-                pos = (pos + 1) % T  # wrap-around
+                pos = (pos + 1) % T # wrap-around
 
         # caminho "de preços" normalizado: começa em 1 para todos os ativos
-        ratios = np.exp(np.cumsum(Y, axis=1))          # (n_assets, T)
-        ones = np.ones((n_assets, 1), dtype=float)     # (n_assets, 1)
-        Z = np.concatenate([ones, ratios], axis=1)     # (n_assets, T+1)
+        ratios = np.exp(np.cumsum(Y, axis=1)) # (n_assets, T)
+        ones = np.ones((n_assets, 1), dtype=float) # (n_assets, 1)
+        Z = np.concatenate([ones, ratios], axis=1) # (n_assets, T+1)
 
         return Z
 
@@ -115,11 +115,11 @@ class PolitisRomanoBootstrap:
         print(f'Done Politis-Romano in {round(time.time() - time_init, 3)} seconds.')
         print()
 
-        return np.stack(boot_list, axis=0)   # (n_boot, n_assets, T+1)
+        return np.stack(boot_list, axis=0) # (n_boot, n_assets, T+1)
     
     
-''' 
-serie = np.exp(np.cumsum(np.random.normal(loc=0, scale=0.01, size=10**2)))
+'''
+Example:
 
 n_assets = 2
 logrets = np.random.normal(loc=0, scale=0.01, size=(n_assets, 10**2 - 1))
