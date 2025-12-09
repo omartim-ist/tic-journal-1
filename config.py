@@ -1,8 +1,6 @@
 # SECURITIES
 SECURITIES = []
 
-# BOUNDS
-
 # Dates
 DATE_INIT =
 
@@ -10,3 +8,5 @@ DATE_INIT =
 N_BOOT = # nº of series to generate
 L = # average length of blocks
 T = # length of each serie
+
+# Optimization
