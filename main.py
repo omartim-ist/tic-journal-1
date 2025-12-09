@@ -4,7 +4,8 @@ import yfinance as yf
 
 ### 2) Import dependencies
 from config import SECURITIES, CONSTRAINTS, DATE_INIT, N_BOOT, L, T
-from bootstrap.politis_romano import PolitisRomanoBootstrap
+from politis_romano import PolitisRomanoBootstrap
+from optimizer import Optimizer
 
 ### 3) Download data
 SECURITIES = sorted(SECURITIES)
