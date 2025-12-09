@@ -9,9 +9,10 @@ from bootstrap.politis_romano import PolitisRomanoBootstrap
 ### 3) Download data
 SECURITIES = sorted(SECURITIES)
 data = yf.download(SECURITIES, start=DATE_INIT, auto_adjust=adj_close)['Close'] 
+data_np = data.to_numpy().T
 
 ### 4) Data Generation via Politis-Romano Bootstrap
-prb = PolitisRomanoBootstrap(serie=serie, n_boot=N_BOOT, l=L, T=T)
+prb = PolitisRomanoBootstrap(serie=data_np, n_boot=N_BOOT, l=L, T=T)
 prb_data = prb.generate()
 
 ### 5) Otimization
