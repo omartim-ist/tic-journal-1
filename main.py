@@ -6,15 +6,14 @@ from scipy.optimize import minimize
 
 
 ### 2) Import dependencies
-from config import SECURITIES, DATE_INIT, N_BOOT, L, T, OBJ_, OPT_METHOD
+from config import SECURITIES, DATE_INIT, DATE_END, N_BOOT, L, T, OPT_METHOD, METRIC, RF
 from politis_romano import PolitisRomanoBootstrap
-from functions import get_moments
-from optimizer import Optimizer
+from functions import get_moments, _OBJ
 
 
 ### 3) Download data
 SECURITIES = sorted(SECURITIES)
-data = yf.download(SECURITIES, start=DATE_INIT, auto_adjust=adj_close)['Close'] 
+data = yf.download(SECURITIES, start=DATE_INIT, end=DATE_END, auto_adjust=adj_close)['Close'] 
 data_np = data.to_numpy().T
 n_sec = len(SECURITIES)
 
@@ -23,19 +22,19 @@ n_sec = len(SECURITIES)
 prb = PolitisRomanoBootstrap(serie=data_np, n_boot=N_BOOT, l=L, T=T)
 prb_data = prb.generate()
 
-
-### 5) Optimization
+# get first and second order moments for each path
 moments_l = Parallel(n_jobs=-1)(
     delayed(get_moments)(set_) for set_ in prb_data
 )
 
-obj_ = OBJ_
+
+### 5) Optimization
 def _optimize():
     res = minimize(
-      obj_, # objetive function
+      _OBJ, # objective function
       w0, # initialization
-      args=(moments_l), # extra arguments for objective function
-      method=method, # optimization method
+      args=(moments_l, METRIC, RF,), # extra arguments for objective function
+      method=OPT_METHOD, # optimization method
       bounds= [(0, 1)] * n_sec # no short positions avoided
       constraints= {'type': 'eq', 'fun': lambda w: np.sum(w) - 1.0}, # sum of weights equals 1.0 (no leverage) 
     )
