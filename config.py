@@ -10,3 +10,4 @@ L = # average length of blocks
 T = # length of each serie
 
 # Optimization
+OPT_METHOD = 'SLSQP' # SLSQP, 
