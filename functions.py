@@ -12,7 +12,7 @@ def variance(w, Sigma):
 def sharpe(w, mu, Sigma, rf):
     ret = w @ mu
     vol = np.sqrt(variance(w, Sigma))
-    return (ret - r_f) / vol
+    return (ret - rf) / vol
 
 
 def _OBJ(w, moments_l, metric, rf=None):
@@ -23,6 +23,8 @@ def _OBJ(w, moments_l, metric, rf=None):
             val = sharpe(w, mu, Sigma, rf)
         elif metric == 'variance':
             val = variance(w, Sigma)
+        else:
+            raise ValueError(f"Unknown metric: {metric}")
             
         list_.append(val)
 
