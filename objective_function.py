@@ -8,8 +8,8 @@ def sharpe(w, mu, Sigma, rf):
     vol = np.sqrt(variance(w, Sigma))
     return (ret - r_f) / vol
 
-def get_moments(set):
-    d_set = np.diff(np.log(set), axis=1) # log-returns
+def get_moments(set_):
+    d_set = np.diff(np.log(set_), axis=1) # log-returns
     mu = np.mean(d_set, axis=1)
     Sigma = np.cov(d_set)
     return mu, Sigma
