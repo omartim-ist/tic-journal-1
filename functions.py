@@ -15,7 +15,7 @@ def sharpe(w, mu, Sigma, rf):
     return (ret - r_f) / vol
 
 
-def OBJ_(w, moments_l, metric, rf=None):
+def _OBJ(w, moments_l, metric, rf=None):
     list_ = []
     for (mu, Sigma) in moments_l:
         
