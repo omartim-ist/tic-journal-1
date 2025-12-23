@@ -1,9 +1,6 @@
 import numpy as np
 import yfinance as yf
 
-start_date = '2019-01-01'
-adj_close = True
-
 def logrets(time_series): 
     series_np = time_series.to_numpy()
     lrets = np.log(series_np)
