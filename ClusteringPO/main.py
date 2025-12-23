@@ -20,7 +20,7 @@ n_sec = len(SECURITIES)
 
 
 ### 4) Hierarchical Clustering
-R = np.corr(data_np)
+R = np.corrcoef(data_np)
 HC = HierarchicalClustering(R)
 HC.get_dendrogram()
 
@@ -31,7 +31,7 @@ while True:
     if done == 'Done':
         break
 
-### 5) 
+### 5)  
 
 
 
