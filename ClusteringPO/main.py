@@ -1,5 +1,6 @@
 ### 1) Import packages
 import numpy as np
+import pandas as pd
 import yfinance as yf
 import sys
 import os
@@ -9,16 +10,16 @@ import os
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, ROOT)
 
-from config import SECURITIES, DATE_INIT, DATE_END, N_BOOT, L, T
+from config import SECURITIES, DATE_INIT, DATE_END, N_BOOT, L, T, WEIGHT_CUTOFF
 from hierarchical_clustering import HierarchicalClustering
-from functions import get_ICP, build_CVar, build_asset_weights, RiskParity
+from functions import get_ICP, build_CVar, build_asset_weights, RiskParity, Validation
 from politis_romano import PolitisRomanoBootstrap
-from validation import Validation
 
 
 ### 3) Download data
 SECURITIES = sorted(SECURITIES)
 data = yf.download(SECURITIES, start=DATE_INIT, end=DATE_END, auto_adjust=True)['Close'] 
+data = data.loc[:, ~data.iloc[0].isna()]
 data = data.ffill()
 data_np = data.to_numpy().T
 n_sec = len(SECURITIES)
@@ -55,6 +56,9 @@ CVar = build_CVar(asset_weights, Var) # Clusters Covariance Matrix
 x_clusters, sigma_rpp = RiskParity(CVar)
 x_assets = build_asset_weights(asset_weights, x_clusters)
 
+x_assets = np.where(x_assets < WEIGHT_CUTOFF, 0.0, x_assets)
+x_assets = x_assets / x_assets.sum()
+
 df_weights = pd.DataFrame({"asset": data.columns,"weight": x_assets})
 df_weights.to_csv("asset_weights.csv", index=False)
 
@@ -62,6 +66,6 @@ df_weights.to_csv("asset_weights.csv", index=False)
 ### 7) Validation via Politis-Romano
 prb = PolitisRomanoBootstrap(serie=data_np, n_boot=N_BOOT, l=L, T=T)
 
-val = Validation(prb, x_assets)
-val._plot_statistics()
-val._plot_paths()
+validation = Validation(prb, x_assets)
+validation._plot_statistics()
+validation._plot_paths()
