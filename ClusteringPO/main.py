@@ -6,7 +6,7 @@ import yfinance as yf
 ### 2) Import dependencies
 from config import SECURITIES, DATE_INIT, DATE_END, N_BOOT, L, T
 from hierarchical_clustering import HierarchicalClustering
-from functions import get_ICP
+from functions import get_ICP, RiskParity
 from politis_romano import PolitisRomanoBootstrap
 
 
