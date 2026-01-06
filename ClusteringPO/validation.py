@@ -19,22 +19,26 @@ class Validation:
         
         # Convert prices to log-returns along the time axis:
         # R has shape (n_paths, n_assets, T) where T = T_prices - 1
-        R = np.diff(np.log(prb_data), axis=2)
-        n_paths, n_assets, T = R.shape
+        np.log(prb_data, out=prb_data)  # in-place (perdes os preços originais)
         
         # Portfolio log-returns per path:
-        # r_p[p, t] = sum_a R[p, a, t] * x[a]
-        r_p = np.einsum("pat,a->pt", R, x) # (n_paths, T)
-        
+        # r_p[p, t] = sum_a R[p, a, t] * x[a]  
+        s = np.einsum("pat,a->pt", prb_data, x)
+        r_p = np.diff(s, axis=1)   
+        n_paths, T = r_p.shape
+
         # Build portfolio value paths using log-returns
         portfolios_value = np.exp(np.cumsum(r_p, axis=1)) # (n_paths, T)
-        self.portfolios_value = np.concatenate([np.ones((n_paths, 1)), portfolios_value], axis=1) # (n_paths, T+1)
-
+        pv = np.empty((n_paths, T + 1), dtype=portfolios_value.dtype)
+        pv[:, 0] = 1.0
+        pv[:, 1:] = portfolios_value
+        self.portfolios_value = pv
+        
         # Per-path mean and volatility of portfolio log-returns
         mean_lrets = r_p.mean(axis=1) # (n_paths,)
         vol_lrets = r_p.std(axis=1, ddof=1) # (n_paths,)
         
-        annualized_returns = np.exp(mean_lrets * 365) - 1 # (n_paths,)
+        annualized_returns = np.expm1(mean_lrets * 365)# (n_paths,)
         annualized_vols = vol_lrets * np.sqrt(365) # (n_paths,)
         sharpes = annualized_returns / annualized_vols # (n_paths,)
         self.d_stat = {'Annualized returns': annualized_returns,
