@@ -55,6 +55,9 @@ CVar = build_CVar(asset_weights, Var) # Clusters Covariance Matrix
 x_clusters, sigma_rpp = RiskParity(CVar)
 x_assets = build_asset_weights(asset_weights, x_clusters)
 
+df_weights = pd.DataFrame({"asset": data.columns,"weight": x_assets})
+df_weights.to_csv("asset_weights.csv", index=False)
+
 
 ### 7) Validation via Politis-Romano
 prb = PolitisRomanoBootstrap(serie=data_np, n_boot=N_BOOT, l=L, T=T)
