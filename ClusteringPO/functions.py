@@ -62,18 +62,40 @@ def get_ICP(assets_index, Mu):
 
 ''' Risk Parity '''
 
-def RC(x, Sigma):
-    sigma = np.sqrt(x.T @ Sigma @ x)
-    return x*(Sigma @ x)/sigma
+def RC(x, Var):
+    '''
+    Computes the risk contribution of each asset to the portfolio volatility.
+    '''
+    sigma = np.sqrt(x.T @ Var @ x)
+    return x*(Var @ x) / sigma
 
-def objective(x,Sigma):
-    Rc = RC(x,Sigma)
-    return sum([(Rc[i] - Rc[j])**2 for i in range(len(Rc)) for j in range(len(Rc))])
+def objective(x, Var):
+    '''
+    Objective function for risk parity.
+    It penalizes differences between pairwise risk contributions, so that
+    all assets end up contributing equally to total portfolio risk.
+    '''
+    Rc = RC(x, Var)
+    return sum([(Rc[i] - Rc[j])**2 for i in range(len(Rc)) for j in range(i+1, len(Rc))])
 
-def RiskParity(Sigma):    
-    x_0 = np.array([1/len(Sigma) for i in range(len(Sigma))])
+def RiskParity(Var):  
+    '''
+    Solves the long-only risk parity optimization problem.
+    Returns the optimal risk-parity weights and the resulting
+    portfolio volatility.
+    '''
+    # initial equal-weight portfolio
+    x_0 = np.array([1/len(Var) for i in range(len(Var))])
+
+    # fully invested, long-only portfolio
     cons = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
-    bounds = [(0, None) for _ in range(len(Sigma))]
-    res = minimize(objective, x_0, args=(Sigma,), constraints=cons, method='SLSQP', bounds=bounds)
-    return res
+    bounds = [(0, None) for _ in range(len(Var))]
+
+    # constrained optimization
+    res = minimize(objective, x_0, args=(Var,), constraints=cons, method='SLSQP', bounds=bounds)
+
+    # final risk-parity weights and portfolio volatility
+    x_rp = res.x
+    sigma_rp = np.sqrt(x_rp.T @ Var @ x_rp)
+    return x_rp, sigma_rp
 
