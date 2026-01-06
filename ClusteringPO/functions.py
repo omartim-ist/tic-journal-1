@@ -60,7 +60,7 @@ def get_ICP(assets_index, Mu):
 
 
 
-''' Risk Parity '''
+''' Inter-Clustering Portfolio: Risk Parity '''
 
 def RC(x, Var):
     '''
