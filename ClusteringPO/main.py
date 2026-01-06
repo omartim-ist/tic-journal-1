@@ -68,7 +68,7 @@ mask = x_assets > 0
 x_assets_cut = x_assets[mask]
 data_np_cut = data_np[mask,:]
 
-prb = PolitisRomanoBootstrap(serie=data_np_cut, n_boot=5_000, l=L, T=T)
+prb = PolitisRomanoBootstrap(serie=data_np_cut, n_boot=N_BOOT, l=L, T=T)
 
 validation = Validation(prb, x_assets_cut)
 validation._plot_statistics()
