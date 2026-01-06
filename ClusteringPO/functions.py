@@ -1,11 +1,12 @@
 import numpy as np
 from scipy.optimize import minimize
+import matplotlib.pyplot as plt
 
 
 
 ''' Intra-Clustering Portfolio '''
 
-def get_ICP(assets_index, Mu):
+def get_ICP(assets_index, Mu, Var):
     """
     Computes intra-cluster portfolio weights adjusted for the return–volatility relationship.
 
@@ -21,6 +22,8 @@ def get_ICP(assets_index, Mu):
         Global indices of the assets in the cluster
     Mu : array-like
         Expected returns of all assets
+    Var : array-like
+        Assets Covariance matrix
 
     Returns
     -------
@@ -59,7 +62,78 @@ def get_ICP(assets_index, Mu):
     return w
 
 
+def build_CVar(asset_weights, Var):  # Clusters Covariance Matrix
+    """
+    Build the cluster-level covariance matrix from the asset-level covariance matrix.
 
+    Parameters
+    ----------
+    asset_weights : dict
+        Dictionary mapping asset index -> (cluster_id, intra-cluster weight).
+        Each asset belongs to exactly one cluster, and weights within each cluster
+        are assumed to sum to 1.
+    Var : np.ndarray
+        Asset-level covariance matrix of shape (N, N).
+
+    Returns
+    -------
+    np.ndarray
+        Cluster-level covariance matrix of shape (K, K), where K is the number of clusters.
+    """
+
+    # Number of assets
+    N = Var.shape[0]
+
+    # Unique cluster identifiers (sorted for deterministic ordering)
+    cluster_ids = np.array(sorted({c for (c, _) in asset_weights.values()}))
+    K = len(cluster_ids)
+
+    # Map each cluster id to a column index in the cluster weight matrix
+    c2j = {c: j for j, c in enumerate(cluster_ids)}
+
+    # Weight matrix W of shape (N, K)
+    # Column j contains the portfolio weights of cluster j over all assets
+    W = np.zeros((N, K), dtype=float)
+    for i, (c, w) in asset_weights.items():
+        W[i, c2j[c]] = w
+
+    # Aggregate asset-level covariance to cluster-level covariance
+    # Var_cluster = W^T * Var * W
+    return W.T @ Var @ W
+
+
+def build_asset_weights(asset_weights, x_clusters):
+    """
+    Build final asset-level weights from inter-cluster and intra-cluster weights.
+
+    Parameters
+    ----------
+    asset_weights : dict
+        asset_weights[i] = (cluster_id, intra_cluster_weight)
+    x_clusters : np.ndarray
+        Risk parity weights at the cluster level (ordered by sorted cluster ids)
+
+    Returns
+    -------
+    np.ndarray
+        Final asset weights vector of shape (N,)
+    """
+
+    # cluster ids in the same order used to build CVar
+    cluster_ids = np.array(sorted({c for (c, _) in asset_weights.values()}))
+    c2j = {c: j for j, c in enumerate(cluster_ids)}
+
+    N = len(asset_weights)
+    x = np.zeros(N, dtype=float)
+
+    for i, (c, w_ic) in asset_weights.items():
+        x[i] = x_clusters[c2j[c]] * w_ic
+
+    return x
+
+
+
+    
 ''' Inter-Clustering Portfolio: Risk Parity '''
 
 def RC(x, Var):
@@ -76,7 +150,7 @@ def objective(x, Var):
     all assets end up contributing equally to total portfolio risk.
     '''
     Rc = RC(x, Var)
-    return sum([(Rc[i] - Rc[j])**2 for i in range(len(Rc)) for j in range(i+1, len(Rc))])
+    return sum([(Rc[i] - Rc[j])**2 for i in range(len(Rc)) for j in range(i+1, len(Rc))]) * 10_000
 
 def RiskParity(Var):  
     '''
@@ -86,7 +160,7 @@ def RiskParity(Var):
     '''
     # initial equal-weight portfolio
     x_0 = np.array([1/len(Var) for i in range(len(Var))])
-
+    
     # fully invested, long-only portfolio
     cons = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
     bounds = [(0, None) for _ in range(len(Var))]
@@ -98,4 +172,3 @@ def RiskParity(Var):
     x_rp = res.x
     sigma_rp = np.sqrt(x_rp.T @ Var @ x_rp)
     return x_rp, sigma_rp
-
