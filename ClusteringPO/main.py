@@ -64,8 +64,12 @@ df_weights.to_csv("asset_weights.csv", index=False)
 
 
 ### 7) Validation via Politis-Romano
-prb = PolitisRomanoBootstrap(serie=data_np, n_boot=N_BOOT, l=L, T=T)
+mask = x_assets > 0
+x_assets_cut = x_assets[mask]
+data_np_cut = data_np[mask,:]
 
-validation = Validation(prb, x_assets)
+prb = PolitisRomanoBootstrap(serie=data_np_cut, n_boot=5_000, l=L, T=T)
+
+validation = Validation(prb, x_assets_cut)
 validation._plot_statistics()
 validation._plot_paths()
