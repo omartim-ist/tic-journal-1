@@ -10,10 +10,11 @@ import time
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
 sys.path.insert(0, ROOT)
 
-from config import OFFSET, SHARPE_MIN, SECURITIES, N_BOOT, L, T, WEIGHT_CUTOFF
+from config import OFFSET, SHARPE_MIN, SECURITIES, N_CLUSTERS, N_BOOT, L, T, WEIGHT_CUTOFF
 from hierarchical_clustering import HierarchicalClustering
-from functions import sharpe, get_ICP, build_CVar, build_asset_weights, RiskParity, Validation
+from functions import sharpe, get_ICP, build_CVar, build_asset_weights, RiskParity
 from politis_romano import PolitisRomanoBootstrap
+from validation import Validation
 
 
 ### 3) Download data
@@ -44,7 +45,7 @@ lrets = np.diff(np.log(data_np))
 R = np.corrcoef(lrets)
 N = R.shape[0]
 HC = HierarchicalClustering(R)
-clusters = HC.get_clusters(14)
+clusters = HC.get_clusters(N_CLUSTERS)
 
 
 ### 6) Intra-Cluster Portfolios
@@ -82,7 +83,7 @@ mask = x_assets > 0
 x_assets_cut = x_assets[mask]
 data_np_cut = data_np[mask,:]
 
-prb = PolitisRomanoBootstrap(serie=data_np_cut, n_boot=700, l=L, T=T)
+prb = PolitisRomanoBootstrap(serie=data_np_cut, n_boot=N_BOOT, l=L, T=T)
 
 ti = time.time()
 validation = Validation(prb, x_assets_cut, OFFSET)
