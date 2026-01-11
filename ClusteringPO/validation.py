@@ -12,7 +12,7 @@ class Validation:
       - provides plotting helpers for path distributions and statistics.
     """
     
-    def __init__(self, prb, x):
+    def __init__(self, prb, x, sharpe_offset):
         
         # Generate bootstrap price paths: expected shape (n_paths, n_assets, T_prices)
         prb_data = prb.generate()
@@ -29,10 +29,10 @@ class Validation:
 
         # Build portfolio value paths using log-returns
         portfolios_value = np.exp(np.cumsum(r_p, axis=1)) # (n_paths, T)
-        pv = np.empty((n_paths, T + 1), dtype=portfolios_value.dtype)
+        pv = np.empty((n_paths, T + 1), dtype=portfolios_value.dtype) # (n_paths, T+1)
         pv[:, 0] = 1.0
         pv[:, 1:] = portfolios_value
-        self.portfolios_value = pv
+        self.portfolios_value = pv 
         
         # Per-path mean and volatility of portfolio log-returns
         mean_lrets = r_p.mean(axis=1) # (n_paths,)
@@ -40,12 +40,19 @@ class Validation:
         
         annualized_returns = np.expm1(mean_lrets * 365)# (n_paths,)
         annualized_vols = vol_lrets * np.sqrt(365) # (n_paths,)
-        sharpes = annualized_returns / annualized_vols # (n_paths,)
+        sharpes = (annualized_returns - sharpe_offset) / annualized_vols # (n_paths,)
+        
+        # Max Drawdown per path
+        running_peak = np.maximum.accumulate(pv, axis=1) # (n_paths, T+1)
+        dd = 1.0 - pv / running_peak # (n_paths, T+1)
+        max_drawdowns = dd.max(axis=1) # (n_paths,)
+
         self.d_stat = {'Annualized returns': annualized_returns,
                        'Annualized volatilities': annualized_vols,
-                       'Sharpe ratios': sharpes}
+                       'Sharpe ratios': sharpes,
+                       'Max Drawdowns': max_drawdowns}
         
-    def _plot_statistics(self, bins=100):
+    def _plot_statistics(self, bins=60):
         """
         Plot histograms of the stored distributions (annualized return, vol, Sharpe),
         adding quartile (Q1/median/Q3) vertical lines in green and the mean in red.
@@ -53,7 +60,7 @@ class Validation:
         """
         
         for title, serie in self.d_stat.items():
-            if title in ['Annualized returns', 'Annualized volatilities']:
+            if title in ['Annualized returns', 'Annualized volatilities', 'Max Drawdowns']:
                 percentage = True
                 serie = serie * 100
             else:
@@ -92,3 +99,4 @@ class Validation:
         plt.axhline(1, color='black')
         plt.xlabel('5 years of Synthetic Data')
         plt.show()
+
