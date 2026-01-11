@@ -85,9 +85,9 @@ class Validation:
             plt.title(title)
             plt.show()
             
-            if not percentage:
+            if title == 'Annualized returns'
                 p = len(serie[serie<0]) / len(serie) * 100
-                print(f'Probability of negative Sharpe Ratio: {round(p, 2)}%')
+                print(f'Probability of annualized negative returns: {round(p, 2)}%')
             
     def _plot_paths(self):
         """
