@@ -4,6 +4,16 @@ import matplotlib.pyplot as plt
 
 
 
+''' Basics '''
+
+def sharpe(lrets, offset):
+    mu = np.mean(lrets, axis=1)
+    sigma = np.std(lrets, axis=1)
+    
+    mu_a = np.expm1(mu * 365)
+    sigma_a = sigma * np.sqrt(365)
+    return (mu_a - offset) / sigma_a
+    
 ''' Intra-Clustering Portfolio '''
 
 def get_ICP(assets_index, Mu, Var):
@@ -102,7 +112,7 @@ def build_CVar(asset_weights, Var):  # Clusters Covariance Matrix
     return W.T @ Var @ W
 
 
-def build_asset_weights(asset_weights, x_clusters):
+def build_asset_weights(asset_weights, x_clusters, N_total):
     """
     Build final asset-level weights from inter-cluster and intra-cluster weights.
 
@@ -118,13 +128,11 @@ def build_asset_weights(asset_weights, x_clusters):
     np.ndarray
         Final asset weights vector of shape (N,)
     """
+    x = np.zeros(N_total, dtype=float)
 
     # cluster ids in the same order used to build CVar
     cluster_ids = np.array(sorted({c for (c, _) in asset_weights.values()}))
     c2j = {c: j for j, c in enumerate(cluster_ids)}
-
-    N = len(asset_weights)
-    x = np.zeros(N, dtype=float)
 
     for i, (c, w_ic) in asset_weights.items():
         x[i] = x_clusters[c2j[c]] * w_ic
@@ -150,7 +158,9 @@ def objective(x, Var):
     all assets end up contributing equally to total portfolio risk.
     '''
     Rc = RC(x, Var)
-    return sum([(Rc[i] - Rc[j])**2 for i in range(len(Rc)) for j in range(i+1, len(Rc))]) * 10_000
+    S = Rc.sum()
+    S_2 = (Rc**2).sum()
+    return (len(Rc) * S_2 - S**2) * 10_000
 
 def RiskParity(Var):  
     '''
