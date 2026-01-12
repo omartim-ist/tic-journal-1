@@ -1,8 +1,5 @@
 import numpy as np
 from scipy.optimize import minimize
-import matplotlib.pyplot as plt
-
-
 
 ''' Basics '''
 
@@ -13,66 +10,28 @@ def sharpe(lrets, offset):
     mu_a = np.expm1(mu * 365)
     sigma_a = sigma * np.sqrt(365)
     return (mu_a - offset) / sigma_a
-    
+   
+ 
 ''' Intra-Clustering Portfolio '''
 
-def get_ICP(assets_index, Mu, Var):
+def get_ICP(assets_index, Mu, Sigma, alpha=2.0):
     """
-    Computes intra-cluster portfolio weights adjusted for the return–volatility relationship.
+    Compute intra-cluster weights using a return-to-risk rule.
 
-    - If the cluster has 1 asset: assigns 100% weight to that asset.
-    - If the cluster has 2 assets: uses Sharpe-like weights (max(mu, 0) / sigma).
-    - If the cluster has 3 or more assets: removes the structural return–volatility
-      component via a cross-sectional regression and allocates weights based on
-      residual volatility (risk not explained by return).
-
-    Parameters
-    ----------
-    assets_index : list[int]
-        Global indices of the assets in the cluster
-    Mu : array-like
-        Expected returns of all assets
-    Var : array-like
-        Assets Covariance matrix
-
-    Returns
-    -------
-    w : np.ndarray
-        Normalized intra-cluster weights (sum to 1)
+    Weights are proportional to μ / σ^alpha, where μ is the expected return
+    and σ the asset volatility. The parameter alpha controls how strongly
+    risk is penalized. Negative returns are set to zero (long-only).
     """
-
-    if len(assets_index) == 1:
-        # Single-asset cluster: full allocation
-        return np.array([1.0])
-        
-    # Asset volatilities within the cluster
-    Sigma = np.sqrt([Var[index, index] for index in assets_index])
-    Mu = [Mu[index] for index in assets_index]
     
-    if len(assets_index) == 2:
-        # Small cluster: Sharpe-like allocation with non-negative returns
-        w = np.maximum(Mu, 0.0) / Sigma
-        w /= w.sum()
-        return w
-        
-    # For larger clusters, use return magnitude
-    Mu = np.abs(Mu)
+    Sigma = np.array([Sigma[index] for index in assets_index], dtype=float)
+    Mu = np.array([max(Mu[index], 0) for index in assets_index], dtype=float)
 
-    # Cross-sectional regression: Sigma = a + b * |Mu|
-    X = np.column_stack([np.ones(len(Mu)), Mu])
-    a, b = np.linalg.lstsq(X, Sigma, rcond=None)[0]
-
-    # Residual volatility (excess risk given return)
-    Sigma_adj = Sigma - b * Mu
-
-    # Allocate inversely to residual risk
-    w = 1.0 / Sigma_adj
+    w = Mu / Sigma**alpha
     w /= w.sum()
-    
     return w
 
 
-def build_CVar(asset_weights, Var):  # Clusters Covariance Matrix
+def build_CCov(asset_weights, Cov):  # Clusters Covariance Matrix
     """
     Build the cluster-level covariance matrix from the asset-level covariance matrix.
 
@@ -82,7 +41,7 @@ def build_CVar(asset_weights, Var):  # Clusters Covariance Matrix
         Dictionary mapping asset index -> (cluster_id, intra-cluster weight).
         Each asset belongs to exactly one cluster, and weights within each cluster
         are assumed to sum to 1.
-    Var : np.ndarray
+    Cov : np.ndarray
         Asset-level covariance matrix of shape (N, N).
 
     Returns
@@ -92,7 +51,7 @@ def build_CVar(asset_weights, Var):  # Clusters Covariance Matrix
     """
 
     # Number of assets
-    N = Var.shape[0]
+    N = Cov.shape[0]
 
     # Unique cluster identifiers (sorted for deterministic ordering)
     cluster_ids = np.array(sorted({c for (c, _) in asset_weights.values()}))
@@ -109,7 +68,7 @@ def build_CVar(asset_weights, Var):  # Clusters Covariance Matrix
 
     # Aggregate asset-level covariance to cluster-level covariance
     # Var_cluster = W^T * Var * W
-    return W.T @ Var @ W
+    return W.T @ Cov @ W
 
 
 def build_asset_weights(asset_weights, x_clusters, N_total):
@@ -130,7 +89,7 @@ def build_asset_weights(asset_weights, x_clusters, N_total):
     """
     x = np.zeros(N_total, dtype=float)
 
-    # cluster ids in the same order used to build CVar
+    # cluster ids in the same order used to build CCov
     cluster_ids = np.array(sorted({c for (c, _) in asset_weights.values()}))
     c2j = {c: j for j, c in enumerate(cluster_ids)}
 
@@ -144,41 +103,42 @@ def build_asset_weights(asset_weights, x_clusters, N_total):
     
 ''' Inter-Clustering Portfolio: Risk Parity '''
 
-def RC(x, Var):
+def RC(x, Cov):
     '''
     Computes the risk contribution of each asset to the portfolio volatility.
     '''
-    sigma = np.sqrt(x.T @ Var @ x)
-    return x*(Var @ x) / sigma
+    sigma = np.sqrt(x.T @ Cov @ x)
+    return x*(Cov @ x) / sigma
 
-def objective(x, Var):
+def objective(x, Cov):
     '''
     Objective function for risk parity.
     It penalizes differences between pairwise risk contributions, so that
     all assets end up contributing equally to total portfolio risk.
     '''
-    Rc = RC(x, Var)
+    Rc = RC(x, Cov)
     S = Rc.sum()
     S_2 = (Rc**2).sum()
     return (len(Rc) * S_2 - S**2) * 10_000
 
-def RiskParity(Var):  
+def RiskParity(Cov):  
     '''
     Solves the long-only risk parity optimization problem.
     Returns the optimal risk-parity weights and the resulting
     portfolio volatility.
     '''
     # initial equal-weight portfolio
-    x_0 = np.array([1/len(Var) for i in range(len(Var))])
+    x_0 = np.array([1/len(Cov) for i in range(len(Cov))])
     
     # fully invested, long-only portfolio
     cons = ({'type': 'eq', 'fun': lambda x: np.sum(x) - 1})
-    bounds = [(0, None) for _ in range(len(Var))]
+    bounds = [(0, None) for _ in range(len(Cov))]
 
     # constrained optimization
-    res = minimize(objective, x_0, args=(Var,), constraints=cons, method='SLSQP', bounds=bounds)
+    res = minimize(objective, x_0, args=(Cov,), constraints=cons, method='SLSQP', bounds=bounds)
 
     # final risk-parity weights and portfolio volatility
     x_rp = res.x
-    sigma_rp = np.sqrt(x_rp.T @ Var @ x_rp)
+    sigma_rp = np.sqrt(x_rp.T @ Cov @ x_rp)
     return x_rp, sigma_rp
+
