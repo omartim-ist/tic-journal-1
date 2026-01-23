@@ -5,12 +5,13 @@ DATE_END = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
 
 # Offset Sharpe
 OFFSET = 0.03
-SHARPE_MIN = -0.1
+SHARPE_MIN = 1.0
 
 # Walk Forward
-N_SPLITS = 9
-TRAIN_BLOCKS_INIT = 3
-TEST_BLOCKS = 2
+N_SPLITS = 9*4
+TRAIN_BLOCKS_INIT = 2
+TEST_BLOCKS = 1
+WF_METHOD = 'rolling' # rolling or expanding
 
 # Clustering
 N_CLUSTERS = 22
@@ -32,4 +33,4 @@ worldwide = ['1878.HK', '1038.HK', '16.HK', '1801.HK', '1928.HK', '1802.HK', '16
 crypto = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'BNB-USD', 'SOL-USD', 'TRX-USD', 'DOGE-USD', 'ADA-USD']
 commodities = ["USO", "BNO", "UNG", "GLD", "SLV", "PPLT", "PALL", "DBA", "DBC", "GSG"]
 
-SECURITIES = us #+ crypto + commodities
+SECURITIES = us + crypto + commodities

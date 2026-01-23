@@ -26,7 +26,8 @@ def get_ICP(assets_index, Mu, Sigma, alpha=2.0):
     Sigma = np.array([Sigma[index] for index in assets_index], dtype=float)
     Mu = np.array([max(Mu[index], 0) for index in assets_index], dtype=float)
 
-    w = Mu / Sigma**alpha
+    #w = Mu / Sigma**alpha
+    w = 1 / Sigma
     w /= w.sum()
     return w
 
