@@ -1,70 +1,68 @@
-### 1) Import packages
-import sys
-import os
 import pandas as pd
+from datetime import datetime, timedelta, date
+
+def _get_sp500_composition(date):
+    
+    while True:
+        url = (
+        "https://raw.githubusercontent.com/"
+        "riazarbi/sp500-scraper/main/"
+        f"ishares/sp500/csv/{date}.csv"
+    )
+        try:
+            tickers = pd.read_csv(url, usecols=[0]).iloc[:, 0].tolist()
+            print(date)
+            return tickers
+        except Exception:
+            date = datetime.strptime(date, "%Y%m%d")
+            prev = date - timedelta(days=1)
+            date = prev.strftime("%Y%m%d")
+
+
+def _get_quarterly_dates(year, end_date="20260101"):
+
+    months = ("01", "04", "07", "10")
+    dates = {}
+
+    for y in range(year, int(end_date[:4]) + 1):
+        for m in months:
+            d = f"{y}{m}01"
+            if d <= end_date:
+                dates[d] = _get_sp500_composition(d)
+
+    return dates
+
+data = _get_quarterly_dates(2015)
+union = sorted(list(set().union(*data.values())))
+
+
+
+date_end = (date.today() - timedelta(days=1)).strftime("%Y-%m-%d")
+commodities = ["USO", "BNO", "UNG", "GLD", "SLV", "PPLT", "PALL", "DBA", "DBC", "GSG"]
+crypto = ['BTC-USD', 'ETH-USD', 'XRP-USD', 'BNB-USD', 'SOL-USD', 'TRX-USD', 'DOGE-USD', 'ADA-USD']
+
+
 import yfinance as yf
+data_stock = yf.download(union, start='2015-01-01', end=date_end, auto_adjust=True)['Close']
+spy = yf.download('SPY', start='2015-01-01', end=date_end, auto_adjust=True)['Close']
+data_commodities = yf.download(commodities, start='2015-01-01', end=date_end, auto_adjust=True)['Close']
+data_crypto = yf.download(crypto, start='2015-01-01', end=date_end, auto_adjust=True)['Close']
 
 
-### 2) Import dependencies
-ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
-sys.path.insert(0, ROOT)
-from config import SECURITIES, DATE_INIT, DATE_END
+data_stock.to_csv('sp500_constituents_historical_data.csv')
+spy.to_csv('sp500_historical_data.csv')
+data_commodities.to_csv('commodities_historical_data.csv')
+data_crypto.to_csv('crypto_historical_data.csv')
 
 
-### 3) Download Data
-data = yf.download(SECURITIES, start=DATE_INIT, end=DATE_END, auto_adjust=True)['Close']
-'''
-data = pd.read_csv('historical_data.csv')
-data = (data
-        .assign(Date = lambda x: pd.to_datetime(x['Date']))
-        .set_index('Date')
-        )
-'''
 
-SUFFIX_TO_CURRENCY = {
-    ".L":  "GBPUSD=X",
-    ".DE": "EURUSD=X",
-    ".F":  "EURUSD=X",
-    ".PA": "EURUSD=X",
-    ".MI": "EURUSD=X",
-    ".MC": "EURUSD=X",
-    ".AS": "EURUSD=X",
-    ".ST": "SEKUSD=X",
-    ".CO": "DKKUSD=X",
-    ".HE": "EURUSD=X",
-    ".OL": "NOKUSD=X",
-    ".SW": "CHFUSD=X",
-    ".T":  "JPYUSD=X",
-    ".HK": "HKDUSD=X",
-    ".TO": "CADUSD=X",
-    ".AX": "AUDUSD=X",
-    ".SI": "SGDUSD=X",
+
+
+data = {
+    pd.to_datetime(str(k), format="%Y%m%d"): v
+    for k, v in data.items()
 }
-
-def infer_currencies(tickers):
-    out = {}
-    for tk in tickers:
-        if "." not in tk:
-            out[tk] = "USD"
-        else:
-            suffix = "." + tk.split(".")[-1]
-            out[tk] = SUFFIX_TO_CURRENCY.get(suffix, "USD")
-    return out
-
-
-currencies_map = infer_currencies(SECURITIES)
-currencies = list(set(list(currencies_map.values())))
-currencies.remove('USD')
-
-data_currencies = yf.download(currencies, start=DATE_INIT, end=DATE_END, auto_adjust=True)['Close'] 
-
-
-df = data.join(data_currencies, how="outer")
-
-
-for asset in data.columns:
-    cur = currencies_map[asset]
-    if cur != 'USD': data[asset] = data[asset] * df[cur]
-
-data.to_csv('historical_data.csv')
+import pickle
+with open("sp500_constituents_by_time.pkl", "wb") as f:
+    pickle.dump(data, f)
 

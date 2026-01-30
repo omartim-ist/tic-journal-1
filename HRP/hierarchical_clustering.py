@@ -4,7 +4,6 @@ from scipy.spatial.distance import squareform
 from scipy.cluster.hierarchy import fcluster
 from sklearn.metrics import silhouette_score
 import matplotlib.pyplot as plt
-import math
 
 
 class HierarchicalClustering:
@@ -61,71 +60,19 @@ class HierarchicalClustering:
         """
         clusters = fcluster(self.Z, t=K, criterion="maxclust")
 
-        if self.verbose >= 1:
-            plt.figure()
-            dendrogram(self.Z)
-            plt.axhline(y=self.Z[-(K - 1), 2], linestyle="--")
-            plt.show()
-
         return clusters
     
-    def choose_k_silhouette(self, k_min=2, k_max=None):
-        """
-        Selects the number of clusters K by maximizing the silhouette score,
-        using the *precomputed* distance matrix from the correlation matrix.
-
-        Parameters
-        ----------
-        k_min : int
-            Minimum K to test (must be >= 2).
-        k_max : int or None
-            Maximum K to test. If None, uses min(N-1, 25).
-
-        Returns
-        -------
-        SilhouetteResult
-            best_k, best_score, and dict of scores per K.
-        """
-        if not hasattr(self, "Z") or not hasattr(self, "D"):
-            self.get_dendrogram()
-
-        N = self.R.shape[0]
-        if k_max is None:
-            k_max = 1 + math.floor(2 * np.sqrt(N))
-        k_min = max(2, int(k_min))
-        k_max = int(k_max)
-
-        if k_min > k_max:
-            raise ValueError(f"k_min ({k_min}) must be <= k_max ({k_max}).")
-
-        scores = {}
+    def choose_k_silhouette(self, k_min=2, k_max=30):
+        
+        best_ss = - np.inf
         best_k = None
-        best_score = -np.inf
-
-        for k in range(k_min, k_max + 1):
-            labels = fcluster(self.Z, t=k, criterion="maxclust")
-
-            # Silhouette requires at least 2 clusters and not all singletons.
-            n_unique = np.unique(labels).size
-            if n_unique < 2 or n_unique >= N:
-                continue
-
-            s = silhouette_score(self.D, labels, metric="precomputed")
-            scores[k] = float(s)
-
-            if s > best_score:
-                best_score = s
+        for k in range(k_min, k_max+1):
+            clusters = fcluster(self.Z, t=k, criterion='maxclust')
+            ss = silhouette_score(self.D, clusters)
+            if ss > best_ss:
                 best_k = k
+        
+        print('best k:', best_k)
+        return fcluster(self.Z, t=best_k, criterion='maxclust')
+    
 
-
-        if self.verbose >= 1:
-            ks = sorted(scores.keys())
-            vals = [scores[k] for k in ks]
-            plt.figure()
-            plt.plot(ks, vals, marker="o")
-            plt.axvline(best_k, linestyle="--")
-            plt.xlabel("K (number of clusters)")
-            plt.ylabel("Silhouette score")
-            plt.show()
-
-        return best_k, self.get_clusters(best_k)
